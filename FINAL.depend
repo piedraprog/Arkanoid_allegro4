@@ -1,0 +1,13 @@
+# depslib dependency file v1.0
+1565345250 source:c:\users\elgordox\desktop\final\main.cpp
+	<allegro.h>
+	<string>
+	<conio.h>
+	<sstream>
+	<iostream>
+	<stdio.h>
+	<stdlib.h>
+	<unistd.h>
+	<winalleg.h>
+	<fstream>
+

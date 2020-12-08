@@ -1,13 +1,13 @@
 /*
 
 JUEGO ARKANOID REMASTERED
-PROYECTO FINAL JOSE PIEDRA 
+PROYECTO FINAL JOSE PIEDRA
 
 FALTA
 
          *AGREGAR LOS CREDITOS
          *IMPLEMENTAR SECUENCIA DE EL BOOS FINAL
-         *RESOLVER EL BUG DE LOS PUNTAJES
+
 
 */
 
@@ -17,6 +17,8 @@ FALTA
                 LIBRERIAS
 
 *************************************************/
+
+#define _WIN32_WINNT 0X0500 //getConsoleWindows()
 #include <allegro.h>
 #include <string>
 #include <conio.h>
@@ -27,13 +29,16 @@ FALTA
 #include <unistd.h>
 #include <winalleg.h>
 #include <fstream>
+#include <windows.h>
 
 using namespace std;
 
 #define ancho 1100
 #define alto 680
 #define WHITE makecol(255, 255, 255)
-#define version 1.0
+#define version 1.2.81220
+
+
 
 /***************************************************************************
 
@@ -97,6 +102,9 @@ BITMAP *pmen4;              //VARIABLE EN LA QUE CARGAREMOS LA IMAGEN DE LA PANT
 BITMAP *pmensa;             //VARIABLE EN LA QUE CARGAREMOS LA IMAGEN DE LA PANTALLA DE MENU
 BITMAP *cursor;             //VARIABLE EN LA QUE CARGAREMOS LA IMAGEN DEL MOUSE
 
+//IMAGENES CREDITOS
+BITMAP *pcred1;             //VARIABLE EN LA QUE CARGAREMOS LA IMAGEN DE LA PANTALLA DE CREDITOS
+BITMAP *pcred2;             //VARIABLE EN LA QUE CARGAREMOS LA IMAGEN DE LA PANTALLA DE CREDITOS CON SELECCION
 
 //IMAGENES DE LOS MEJORES PUNTAJES
 
@@ -155,12 +163,15 @@ void jugabilidad();
 void grabo_archivo_PUNTAJES();
 void ordenar_puntajes();
 void cargo_puntaje();
-void muestro_puntajes();
+void muestro_puntajes(int w, int mejores_puntajes_array[], string mejores_nombres_array[]);
 void abro_puntaje();
 void detecto_tecla();
 void registro_nombre();
 void cargo_img();
 void fin_partida();
+
+//FUNCION PARA LOS CREDITOS
+void mostrarcreditos();
 
 /******************************************************************************************
 
@@ -180,8 +191,8 @@ bool nuevoNivel=false;          //BOOLEANO QUE INDICA SI SE PASA A UN UEVO NIVEL
 bool enJuego=false;             //BOOLEANO QUE INDICA SI AUN SE ESTA JUGANDO O NO
 int dirY=-1;                    //ENTERO QUE INDICA COORDENADAS EN Y
 int dirX=1;                     //ENTERO QUE INDICA COORDENADAS EN X
-int velocidad=30;               //ENTERO QUE ESPECIFICA LA VELOCIDAD
-int velocidadInicial=30;        //ENTERO QUE DEVUELVE UNA VELOCIDAD INICIAL
+int velocidad=3;                //ENTERO QUE ESPECIFICA LA VELOCIDAD
+int velocidadInicial=3;         //ENTERO QUE DEVUELVE UNA VELOCIDAD INICIAL
 int fondoN=1;                   //ENTERO QUE SE USA PARA ELEGIR EL FONDO
 bool muerte=false;              //BOOLEANO QUE INDICA SI LAS VIDAS SE ACABARON O NO
 int secuenciaMuerte=1;          //ENTERO PARA HACER LA ANIMACION DE DESTRUCCION DE LA PLATAFORMA
@@ -197,6 +208,8 @@ int cambio2=1;                  //ENTERO QUE SE USA PARA LA SELECCION DE MENU
 int baseX=255;                  //COORDENADAS DE LA PLATAFORMA EN X
 int bolaX=295;                  //COORDENADAS DE LA PELOTA EN X
 int bolaY=650;                  //COORDENADAS DE LA PELOTA EN Y
+
+//NIVELES
 
 int pant1[63]={1,1,1,1,1,1,1,1,1,       //MAPEO DE LOS NIVELES, CADA NUMERO REPRESENTA UN TIPO DE BLOQUE
                2,2,2,2,2,2,2,2,2,       //SE HACE UN VECTOR DE 63 DEBIDO A QUE SE IMPRIMIRA EN UNA MATRIZ DE
@@ -240,13 +253,13 @@ int fila[]={20,50,80,110,140,170,200};  //VECTOR DE FILA QUE DICE EN QUE PARTE D
 //bool existeArchivo;                   //BOOLEANO DE VERIFICACION DE ARCHIVO
 int temporal;                           //ENTERO TEMPORAL PARA HACER EL ORDENAMIENTO DEL ARRAY DE PUNTAJES PARA GUARDARLOS
 int const DIM= 11;                      //CONSTANTE DE VALOR ENTERO PARA LA DIMENSION DE LOS ARRAYS
-int mejores[DIM];                       //ARRAY DONDE SE GUARDAN LOS PUNTAJES
+int mejores;                       //ARRAY DONDE SE GUARDAN LOS PUNTAJES
 int mejores2[DIM];                      //ARRAY PARA GUARDAR LOS PUNTAJES DE EL ARCHIVO Y PODER MONTRARLOS EN EL ENTORNO GRAFICO
 int p=0,w=0;                            //VARIABLES QUE VAN A SERVIR PARA CONTADORES
 int score2;
-bool volvermenu=false;                  //VARIABLE PARA VOLVER AL MENU
+bool volvermenu=false,finaldearmarpuntajes=false;                  //VARIABLE PARA VOLVER AL MENU
 
-string nommejor[DIM];                   //ARRAY DE STRING PARA GUARDAR EL NOMBRE
+string nommejor;                        //STRING PARA GUARDAR EL NOMBRE
 string temporal2;                       //TEMPORAL STRING PARA PODER HACER EL ORDENAMIENTO DEL NOMBRE
 string mejores3[DIM];                   //ARRAY DE STRING PARA GUARDAR LOS NOMBRES AL SALIR DEL ARCHIVO Y PODER MONTRARLOS POR PANTALLA
 
@@ -262,6 +275,7 @@ string nombre;
 
     FUNCION PRINCIPAL
 
+
 *********************************************************************************************************/
 
 int main()
@@ -274,16 +288,15 @@ int main()
 }
 END_OF_MAIN();
 
-/*
+/******************************************************************
 
 
         FUNCIONES DE LA JUGABILIDAD
 
+ EL NUCLEO DEL JUEGO EN SI AQUI ESTAN TODAS LA FUNCIONES QUE PERMITEN AL JUEGO FUNCIONAR
 
-*/
+*********************************************************************/
 int inicializo(){                        //FUNCION QUE ME INICIA Y CARGA TODAS LAS FUNCIONES DE LA JUGABILIDAD
-
-    cargo_archivo();
 
     inicializo_sonido();
     inicializo_pantalla();
@@ -291,6 +304,9 @@ int inicializo(){                        //FUNCION QUE ME INICIA Y CARGA TODAS L
     datfile=load_datafile("recursos.dat");
     arialB=(FONT*)datfile[1].dat;
     arial20=(FONT*)datfile[0].dat;
+
+    /*HWND hwnd = GetConsoleWindow();
+    ShowWindow(hwnd,0);*/
 
     play_midi(musicaInicio,0);
 	return 0;
@@ -485,18 +501,18 @@ void inicializo_nivel(){                         //FUNCION QUE INICIA EL NIVEL
 }
 
 
-void retoma_juego(){
+void retoma_juego(){ //ESTA FUNCION ES PARA RETOMAR EL JUEGO EN UNA POSICION ESPECIFICA
     baseX=255;
     bolaX=295;
     bolaY=650;
     enJuego=false;
     nuevoNivel=false;
     armo_pantalla();
-    velocidad=5+((int)level/5);
+    velocidad = 1+((int)level/5);
 }
 
 
-void configura_level(){
+void configura_level(){ //FUNCION QUE ARMA LA PANTALLA DONDE ESTAN LOS BLOQUES
    for (int i = 0;i<63;i++){
       if(level==1) mapa[i]=pant1[i];
       if(level==2) mapa[i]=pant2[i];
@@ -505,7 +521,7 @@ void configura_level(){
 }
 
 
-void muestro_ladrillos(){
+void muestro_ladrillos(){ //DEPENDIENDO EL MAPA EMPIEZA A ARMAR LOS BLOQUES POR COLOR
    int x, y, col;
    int lad;
 
@@ -550,7 +566,7 @@ void muestro_ladrillos(){
 }
 
 
-void muevo_bola(){
+void muevo_bola(){ //FUNCION PARA EL MOVIMIENTO DE LA PELOTA
  puntaIzq=baseX+20;
  puntaDer=baseX+100;
 
@@ -620,7 +636,7 @@ void muevo_bola(){
 }
 
 
-void chequeo_base(){
+void chequeo_base(){ //DEPENDIENDO DE LA TECLA QUE SE TOQUE HACE Y MUESTRA EL MOVIMIENTO
      if(key[KEY_RIGHT]) {
          if (baseX<476) baseX=baseX+velocidad;
      }
@@ -631,7 +647,7 @@ void chequeo_base(){
 }
 
 
-int cuentoLadrillos(){
+int cuentoLadrillos(){ //FUNCION QUE ME DEVUELVE EL NUMEROS DE LADRILLOS TENIENDO EN CUENTA SI LA PELOTA HA CHOCADO CON UN LADRILLO
    for(int i=0;i<63;i++) {
      if(mapa[i]!=8 && mapa[i]>0) return 1;
    }
@@ -639,7 +655,7 @@ int cuentoLadrillos(){
 }
 
 
-void dibujaMuerte(){
+void dibujaMuerte(){ //MUESTRA LA DESTRUCCION DE LA PLATAFORMA CUANDO SE QUEDA SIN VIDAS
   muerte=true;
   for (secuenciaMuerte=1;secuenciaMuerte<5;secuenciaMuerte++)
   {
@@ -651,7 +667,7 @@ void dibujaMuerte(){
 }
 
 
-void chequeo_teclasSonido(){
+void chequeo_teclasSonido(){ //PARA DETENER O DARLE PLAY A LA MUSICA
     if(key[KEY_DEL]) {
        if(musica) {
           musica=false;
@@ -672,37 +688,7 @@ void chequeo_teclasSonido(){
 }
 
 
-void cargo_archivo(){
-   ifstream puntaje;
-   char textoPuntaje[100];
-
-   puntaje.open("high.dat");
-   if(puntaje.fail()) {
-      existeArchivo=false;
-      return;
-   }
-   if(!puntaje.eof()) {
-        puntaje.getline(textoPuntaje, sizeof(puntaje));
-        string s=string(textoPuntaje);
-        highScore=atoi(s.c_str());
-   }
-   puntaje.close();
-
-}
-
-
-void grabo_archivo(){
-    ofstream puntaje;
-
-    puntaje.open("high.dat");
-
-    //puntaje << highScore << endl;
-
-    puntaje.close();
-}
-
-
-void jugabilidad(){
+void jugabilidad(){ //FUNCION BASICA PARA LA JUGABILIDAD LA QUE LLAMA Y EJECUTA LAS FUNCIONES DE LA JUGABILIDAD
 
  try
       {
@@ -722,13 +708,14 @@ void jugabilidad(){
 
               if(score>highScore){
                 highScore=score;
-                grabo_archivo();
+
               }
 
                 score2=score;
 
               cout<<score2;
               while(!key[KEY_ESC] && !key[KEY_ENTER]){
+
               }
               vidas=3;
               level=1;
@@ -753,8 +740,10 @@ void jugabilidad(){
 
                                     MENU
 
+        AQUI ESTAN LAS FUNCIONES QUE HACEN QUE SE MUESTRE EL MENU
+
 ********************************************************************************/
-void cargoimg_menu(){
+void cargoimg_menu(){ //CUNCION PARA QUE ME CARGA EN CACHE TODAS LA IMAGENES QUE HACEN QUE SEA MUCHO MAS FACIL EL LLAMADO A LOS MISMO
 
 
             pini1 = load_bitmap("recursos/img/PANTALLAINICIO1.bmp",NULL);
@@ -766,11 +755,12 @@ void cargoimg_menu(){
             pmen4 = load_bitmap("recursos/img/menuseleccion4.bmp",NULL);
             pmensa = load_bitmap("recursos/img/menuseleccionsalir.bmp",NULL);
             cursor = load_bitmap("recursos/img/cursor.bmp",NULL);
-
+            pcred1 = load_bitmap("recursos/img/creditosvolver.bmp",NULL);
+            pcred2 = load_bitmap("recursos/img/creditossinseleccion.bmp",NULL);
 }
 
 
-int inicio_allegro(){
+int inicio_allegro(){ //INCIO ALLEGRO PARA PODER HACER LAS FUNCIONES BASICAS
 
 
             allegro_init();
@@ -792,7 +782,7 @@ int inicio_allegro(){
 }
 
 
-void menu(){
+void menu(){ //FUNCION QUE MUESTRA EL MENU
 
             int cambio=1;
             bool salir=false;
@@ -830,19 +820,26 @@ void menu(){
                                                             jugabilidad();
 
                                                             cargoimg_menu();
-                                                                 }
+                                                        }
                                                     }
                                                     else if (mouse_x>110 && mouse_x<739 && mouse_y>333 && mouse_y<370){
 
                                                         blit(pmen2,buffer,0,0,0,0,1080,640);//MEJORES PUNTAJES
                                                         if (mouse_b & 1){
 
-                                                                   muestro_puntajes();
-                                                                }
+                                                            abro_puntaje();
+                                                        }
                                                     }
-                                                    else if (mouse_x>102 && mouse_x<423 && mouse_y>334 && mouse_y<369){
+                                                    else if (mouse_x>102 && mouse_x<429 && mouse_y>392 && mouse_y<451){
 
                                                         blit(pmen3,buffer,0,0,0,0,1080,640);//CREDITOS
+                                                        if (mouse_b & 1){
+
+                                                            mostrarcreditos();
+
+                                                        }
+
+
                                                     }
                                                     else if (mouse_x>108 && mouse_x<309 && mouse_y>474 && mouse_y<513){
 
@@ -851,6 +848,9 @@ void menu(){
                                                                  if (mouse_b & 1){
 
                                                                    salir=true;
+                                                                   liberador_de_memoria();
+                                                                   liberador_de_memoria2();
+                                                                   exit(0);
                                                                 }
 
                                                             break;
@@ -889,7 +889,7 @@ void menu(){
 }
 
 
-void liberador_de_memoria(){
+void liberador_de_memoria(){ //LIBERADORES DE MEMORIA, (NO SE UTILIZAN PORQUE HACE QUE EL PROGRAMA SEA MAS LENTO)
 
     clear_bitmap(fondo1);
     clear_bitmap(fondo2);
@@ -920,7 +920,7 @@ void liberador_de_memoria(){
 }
 
 
-void liberador_de_memoria2(){
+void liberador_de_memoria2(){ //LIBERADORES DE MEMORIA, (NO SE UTILIZAN PORQUE HACE QUE EL PROGRAMA SEA MAS LENTO)
 
     clear_bitmap(pmen1);
     clear_bitmap(pmen2);
@@ -945,56 +945,22 @@ void liberador_de_memoria2(){
 
                                                 ARCHIVOS
 
-
+    FUNCIONES QUE USAN EL  MANEJO DE ARCHOS PARA GUARDAR EL PUNTAJE Y LOS NOMBRES DE LOS JUGADORES
 
 **********************************************************************************************/
 
 void cargo_puntaje(){
 
 
-     for(int k=0;k<DIM;k++){
-
-            mejores[k]=k+10;
-
-        }
-    for(int r=0;r<DIM;r++){
-
-        nommejor[r]="NOMBRE";
-    }
-
-    mejores[9]=score2;
+    mejores=score2;
 
     registro_nombre();
 
-    nommejor[9]=nombre;
-
-    ordenar_puntajes();
+    nommejor=nombre;
 
     grabo_archivo_PUNTAJES();
 }
 
-
-void ordenar_puntajes(){
-
-    for (int i=0; i<DIM;i++){
-
-            for (int j=0; j<DIM-1;j++){
-
-                if (mejores[j]<mejores[j+1]){
-
-                    temporal=mejores[j];
-                    mejores[j]=mejores[j+1];
-                    mejores[j+1]=temporal;
-
-                    temporal2=nommejor[j];
-                    nommejor[j]=nommejor[j+1];
-                    nommejor[j+1]=temporal2;
-
-                }
-            }
-
-        }
-}
 
 
 void registro_nombre(){
@@ -1023,21 +989,12 @@ void grabo_archivo_PUNTAJES(){
     ofstream puntaje;
     ofstream nombres;
 
-    puntaje.open("high.dat");
-    nombres.open("highnombres.dat");
+    puntaje.open("puntaje.dat",std::fstream::app);
+    nombres.open("nombre.dat",std::fstream::app);
 
-    for(int f=0;f<10;f++){
+    puntaje<<mejores<< endl;
+    nombres<<nommejor<< endl;
 
-        //cout<<mejores[f]<<endl;
-        puntaje<<mejores[f]<< endl;
-
-    }
-
-    for(int q=0;q<10;q++){
-
-        nombres<<nommejor[q]<< endl;
-
-    }
     puntaje.close();
     nombres.close();
 }
@@ -1045,56 +1002,63 @@ void grabo_archivo_PUNTAJES(){
 
 void abro_puntaje(){
 
-        //VACIADO DEL ARCHIVO QUE CONTIENE LOS PUNTAJES EN EL ARRAY PARA ASI MOSTRALOS EN PANTALLA
-        ifstream puntaje;
-        char textoPuntaje[100];
+    //variables que nada mas se van a utilizar aqui en esta funcion
+    int mejores_puntajes_array[200];
+    string mejores_nombres_array[200];
+    char textonombres[100];
+    char textoPuntaje[100];
+    int w=0;
 
-           puntaje.open("high.dat");
+    //temporales para aplicar el metodo burbuja
+    int temporal_puntaje;
+    string temporal_nombre;
 
-           if(puntaje.fail()) {
+    ifstream puntajes;
+    ifstream nombres;
 
-              cout<<"ARCHIVO NO EXISTE"<<endl;
-              return;
-           }
+    puntajes.open("puntaje.dat");
+    nombres.open("nombre.dat");
 
-           while(!puntaje.eof()) {
+    while( !puntajes.eof() && !nombres.eof() ){
 
-                puntaje.getline(textoPuntaje, sizeof(puntaje));
+        //VOLCADO DE LA INFORMACION DE LOS PUNTAJES EN UN ARRAY PARA SU MANEJO POSTERIOR
+        puntajes.getline(textoPuntaje, sizeof(puntajes));
+        string s=string (textoPuntaje);
+        mejores_puntajes_array[w]=atoi(s.c_str());
 
-                string s=string (textoPuntaje);
 
-                mejores2[p]=atoi(s.c_str());
+        //VOLCADO DE LOS NOMBRES EN UN ARRAY PARA SU MANEJO POSTERIOR
+        nombres.getline(textonombres, sizeof(nombres));
+        string n = string (textonombres);
+        mejores_nombres_array[w]= n;
 
-                p++;
+        w++;
 
-           }
-           puntaje.close();
+    }
 
-            //VACIADO DEL ARCHIVO QUE CONTIENE LOS NOMBRES EN EL ARRAY PARA MOSTRARLOS EN PANTALLA
-            ifstream nombres;
-            char textonombres[100];
 
-            nombres.open("highnombres.dat");
+    puntajes.close();
+    nombres.close();
 
-            if(nombres.fail()) {
+    for (int i=0; i<w;i++){
 
-                cout<<"ARCHIVO NO EXISTE"<<endl;
-                return;
+        for (int j=0; j<w-1;j++){
+
+            if ( mejores_puntajes_array[j] < mejores_puntajes_array[j+1] ){
+                    //METODO DE ORDENAMIENTO USANDO UNA TERCERA VARIABLE PARA LOS PUNTAJES
+                    temporal_puntaje=mejores_puntajes_array[j];
+                    mejores_puntajes_array[j]=mejores_puntajes_array[j+1];
+                    mejores_puntajes_array[j+1]=temporal_puntaje;
+
+                    //METODO DE ORDENAMIENTO USANDO UNA TERCERA VARIABLE PARA LOS NOMBRES
+                    temporal_nombre=mejores_nombres_array[j];
+                    mejores_nombres_array[j]=mejores_nombres_array[j+1];
+                    mejores_nombres_array[j+1]=temporal_nombre;
             }
+        }
+    }
 
-            while(!nombres.eof()) {
-
-                nombres.getline(textonombres, sizeof(nombres));
-
-                string s=string (textonombres);
-
-                mejores3[w]=s;
-
-                w++;
-
-           }
-           cout<<"paso3"<<endl;
-           nombres.close();
+    muestro_puntajes(w,mejores_puntajes_array,mejores_nombres_array);
 
 
 }
@@ -1173,42 +1137,30 @@ void detecto_tecla(){
 }
 
 
-void muestro_puntajes(){
-
-
+void muestro_puntajes(int w, int mejores_puntajes_array[], string mejores_nombres_array[]){
 
         cargo_img();
-        abro_puntaje();
 
-        int cordx=300;
-        int cordx2=470;
-        volvermenu=false;
+        int cordx=290,cordx2=470,cordy = 150;
+
+        volvermenu = false;
+        finaldearmarpuntajes = false;
 
         while (!volvermenu){
 
+            while(!finaldearmarpuntajes){
 
-            textprintf_ex(mpun, arial20, cordx,  150, makecol(255,255,255),makecol(0,0,0), "1- : %i", mejores2[0]);
-            textprintf_ex(mpun, arial20, cordx,  190, makecol(255,255,255),makecol(0,0,0), "2- : %i", mejores2[1]);
-            textprintf_ex(mpun, arial20, cordx,  230, makecol(255,255,255),makecol(0,0,0), "3- : %i", mejores2[2]);
-            textprintf_ex(mpun, arial20, cordx,  270, makecol(255,255,255),makecol(0,0,0), "4- : %i", mejores2[3]);
-            textprintf_ex(mpun, arial20, cordx,  310, makecol(255,255,255),makecol(0,0,0), "5- : %i", mejores2[4]);
-            textprintf_ex(mpun, arial20, cordx,  350, makecol(255,255,255),makecol(0,0,0), "6- : %i", mejores2[5]);
-            textprintf_ex(mpun, arial20, cordx,  390, makecol(255,255,255),makecol(0,0,0), "7- : %i", mejores2[6]);
-            textprintf_ex(mpun, arial20, cordx,  430, makecol(255,255,255),makecol(0,0,0), "8- : %i", mejores2[7]);
-            textprintf_ex(mpun, arial20, cordx,  470, makecol(255,255,255),makecol(0,0,0), "9- : %i", mejores2[8]);
-            textprintf_ex(mpun, arial20, cordx,  510, makecol(255,255,255),makecol(0,0,0), "10-: %i", mejores2[9]);
+                for(int l=0; l<10;l++){
 
-            textout(mpun, arial20, mejores3[0].c_str(), cordx2,  150,makecol(255,255,255) );
-            textout(mpun, arial20, mejores3[1].c_str(), cordx2,  190,makecol(255,255,255) );
-            textout(mpun, arial20, mejores3[2].c_str(), cordx2,  230,makecol(255,255,255) );
-            textout(mpun, arial20, mejores3[3].c_str(), cordx2,  270,makecol(255,255,255) );
-            textout(mpun, arial20, mejores3[4].c_str(), cordx2,  310,makecol(255,255,255) );
-            textout(mpun, arial20, mejores3[5].c_str(), cordx2,  350,makecol(255,255,255) );
-            textout(mpun, arial20, mejores3[6].c_str(), cordx2,  390,makecol(255,255,255) );
-            textout(mpun, arial20, mejores3[7].c_str(), cordx2,  430,makecol(255,255,255) );
-            textout(mpun, arial20, mejores3[8].c_str(), cordx2,  470,makecol(255,255,255) );
-            textout(mpun, arial20, mejores3[9].c_str(), cordx2,  510,makecol(255,255,255) );
+                    cordy = cordy+40;
 
+                    textprintf_ex(mpun, arial20, cordx, cordy, makecol(255,255,255),makecol(0,0,0),"%i- : %i",l+1,mejores_puntajes_array[l]);
+                    textout(mpun, arial20, mejores_nombres_array[l].c_str(), cordx2, cordy,makecol(255,255,255) );
+
+
+                }
+                finaldearmarpuntajes = true;
+            }
 
 
             draw_sprite(buffer,mpun,0,0);
@@ -1231,14 +1183,57 @@ void muestro_puntajes(){
 
 }
 
+
 void fin_partida(){
 
         cargo_img();
-
-
         cargo_puntaje();
 
-
-
-
 }
+
+
+/***********************************************************************************************************
+
+
+                                CREDITOS
+
+
+
+
+*************************************************************************************************************/
+
+
+void mostrarcreditos(){
+
+    volvermenu = false;
+
+    while (!volvermenu){
+
+
+        draw_sprite(buffer,pcred2,0,0);
+
+
+        if(mouse_x>744 && mouse_x<1067 && mouse_y>594 && mouse_y<654){
+
+            draw_sprite(buffer,pcred1,0,0);
+
+            if (mouse_b & 1){
+
+                    volvermenu=true;
+
+            }
+
+        }
+
+        masked_blit(cursor,buffer,0,0,mouse_x,mouse_y,30,30);
+
+        blit(buffer, screen, 0,0,0,0,ancho, alto);
+
+
+
+
+
+    }
+}
+
+

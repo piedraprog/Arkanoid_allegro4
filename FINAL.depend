@@ -11,3 +11,16 @@
 	<winalleg.h>
 	<fstream>
 
+1607407545 source:j:\trabajo-universidad\arkanoid\versiones del juego\ark final\main.cpp
+	<allegro.h>
+	<string>
+	<conio.h>
+	<sstream>
+	<iostream>
+	<stdio.h>
+	<stdlib.h>
+	<unistd.h>
+	<winalleg.h>
+	<fstream>
+	<windows.h>
+
